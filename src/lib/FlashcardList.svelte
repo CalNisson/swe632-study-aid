@@ -2,26 +2,22 @@
   import Flashcard from './Flashcard.svelte';
   import Deck from './Deck.svelte';
   import ImportModal from './ImportModal.svelte';
+
   let newQuestion = $state("");
   let newAnswer = $state("");
   let newDeckName = $state("");
   let showDeckInput = $state(false);
-  let { decks=$bindable(), handleDeckChange, selectedDeck, addDeck, addFlashcard, showSuccessMessage } = $props();
+  let { decks, handleDeckChange, selectedDeck, addDeck, removeDeck, addFlashcard, removeFlashcard, showSuccessMessage, importDeck, handleEditDeck } = $props();
   let showImportModal = $state(false);
+  let isShuffled = $state(false);
+  let shuffledIndices = $state([]);
+  let currentCardIndex = $state(0);
+  let originalFlashcards = $state([]);
 
-  function handleEditDeck(event) {
-    const { newName } = event.detail;
-    // decks = decks.map(deck => 
-    //   deck === selectedDeck 
-    //     ? { ...deck, name: newName }
-    //     : deck
-    // );
-    decks[selectedDeck].name = newName;
-    //selectedDeck = { ...selectedDeck, name: newName };
-  }
+ 
 
   function handleDeleteDeck() {
-    decks.splice(selectedDeck, 1)
+    decks.splice(selectedDeck, 1);
     selectedDeck = null;
     showSuccessMessage("Deck deleted successfully!");
   }
@@ -34,27 +30,12 @@
     showImportModal = false;
   }
 
-  function importDeck(event) {
-    const file = event.detail.file;
-    if (!file) {
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const text = e.target.result;
-        const importedFlashcards = text.split("\n").map(line => {
-            const [q, a] = line.split("|").map(part => part.trim());
-            return q && a ? { question: q, answer: a } : null;
-        }).filter(Boolean);
-
-        decks[selectedDeck].flashcards = [...decks[selectedDeck].flashcards, ...importedFlashcards];
-
-    };
-    reader.readAsText(file);
-  }
+  
 
   function selectDeck(deck) {
     selectedDeck = deck;
+    currentCardIndex = 0;
+    originalFlashcards = [...deck.flashcards];
   }
 
   function handleDeleteFlashcard(event) {
@@ -62,16 +43,75 @@
     if (confirm('Are you sure you want to delete this flashcard?')) {
       if (selectedDeck !== null) {
         decks[selectedDeck].flashcards.splice(index, 1);
-        decks = [...decks];
+        originalFlashcards = [...decks[selectedDeck].flashcards];
       }
     }
     showSuccessMessage("Flashcard deleted successfully!");
+  }
+
+  function shuffleCards() {
+    let originalIndex = currentCardIndex;
+    isShuffled = !isShuffled;
+
+    if (isShuffled) {
+      shuffleIndices();
+      currentCardIndex = 0;
+    } else {
+      if (shuffledIndices.length > 0) {
+        currentCardIndex = decks[selectedDeck].flashcards.findIndex(card => decks[selectedDeck].flashcards[shuffledIndices[originalIndex]] === decks[selectedDeck].flashcards[originalIndex]);
+      }
+    }
+  }
+
+  function shuffleIndices() {
+    shuffledIndices = [...Array(decks[selectedDeck].flashcards.length).keys()];
+    for (let i = shuffledIndices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledIndices[i], shuffledIndices[j]] = [shuffledIndices[j], shuffledIndices[i]];
+    }
+  }
+  
+  let firstCardClicked = $state(false);
+
+  function nextCard() {
+    if (isShuffled) {
+      currentCardIndex++;
+      if (currentCardIndex >= shuffledIndices.length) {
+        shuffleIndices();
+        currentCardIndex = 0;
+      }
+    } else {
+      currentCardIndex = (currentCardIndex + 1) % decks[selectedDeck].flashcards.length;
+    }
+  }
+
+  function previousCard() {
+    if (isShuffled) {
+      currentCardIndex--;
+      if (currentCardIndex < 0) {
+        shuffleIndices();
+        currentCardIndex = shuffledIndices.length - 1;
+      }
+    } else {
+      currentCardIndex = (currentCardIndex - 1 + decks[selectedDeck].flashcards.length) % decks[selectedDeck].flashcards.length;
+    }
+  }
+
+  import { tick } from 'svelte';
+
+  async function goToFirstCard() {
+    if (!decks[selectedDeck] || decks[selectedDeck].flashcards.length === 0) return; 
+    
+    currentCardIndex = -1; // Force change detection
+    await tick();
+    currentCardIndex = 0;  // Now actually set it to first card
+    await tick();
   }
 </script>
 
 <style>
   .flashcard-list {
-    max-width: 1800px;  /* Increased to match deck width */
+    max-width: 1800px;
     min-height: 1000px;
     margin: 0 auto;
     padding: 1rem;
@@ -81,7 +121,7 @@
   }
 
   .input-container {
-    width: 800px;  /* Match deck width */
+    width: 800px;
     display: flex;
     flex-direction: column;
     margin-bottom: 1rem;
@@ -98,7 +138,16 @@
     box-sizing: border-box;
   }
 
-  /* .add-button {
+  .shuffle-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: -6.5rem; 
+    z-index: 10;
+  }
+
+  .shuffle-button {
+    margin-right: 3px;
     padding: 0.5rem 1rem;
     font-size: 1rem;
     border: none;
@@ -106,35 +155,38 @@
     background-color: #007bff;
     color: #fff;
     cursor: pointer;
-    align-self: flex-end;
-  } */
-
-
-  .add-button:hover {
-    background-color: #0056b3;
-  }
-
-  .deck-list {
-    width: 800px;  /* Match deck width */
     margin-bottom: 1rem;
   }
 
-  .deck-item {
-    padding: 0.5rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    margin-bottom: 0.5rem;
-    cursor: pointer;
-    background-color: #f9f9f9;
+  .shuffle-button.shuffled {
+    background-color: #ff9800; /* Highlight color */
   }
 
-  .deck-item:hover {
-    background-color: #e9e9e9;
+  .card-counter {
+    text-align: center;
+    margin-top: 1rem;
+    color: #666;
+  }
+
+  .first-card-button {
+    position: relative;
+    left: -300px;
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 4px;
+    background-color: #28a745; /* Green color */
+    color: #fff;
+    cursor: pointer;
+    margin-top: -3.5rem;
+  }
+
+  .first-card-button.clicked {
+    background-color: darkgreen;
   }
 </style>
 
 <ImportModal show={showImportModal} on:import={importDeck} on:close={closeImportModal} />
-
 <div class="flashcard-list">
   {#if typeof selectedDeck === "number" && selectedDeck >= 0}
     <div class="input-container">
@@ -152,14 +204,23 @@
       />
       <button class="px-4 py-2 text-base border-none rounded-md bg-blue-500 text-white cursor-pointer self-end" onclick={() => { addFlashcard(newQuestion, newAnswer); newQuestion = ""; newAnswer = ""; } }>Add</button>
     </div>
-    <Deck 
-      flashcards={decks[selectedDeck].flashcards} 
+    <Deck
+      flashcards={isShuffled ? shuffledIndices.map(index => decks[selectedDeck].flashcards[index]) : decks[selectedDeck].flashcards}
       deckName={decks[selectedDeck].name}
       showSuccessMessage={showSuccessMessage}
       on:edit={handleEditDeck}
-      on:delete={handleDeleteDeck}
+      on:delete={() => removeDeck(selectedDeck)}
       on:importDeck={openImportModal}
       on:deleteFlashcard={handleDeleteFlashcard}
+      currentCardIndex={currentCardIndex} 
     />
+    {#if decks[selectedDeck].flashcards.length > 0}
+      <div class="shuffle-container">
+        <button class="shuffle-button" class:shuffled={isShuffled} onclick={shuffleCards}>Shuffle</button>
+        <button class="first-card-button" class:clicked={firstCardClicked} onclick={goToFirstCard}>Back To First</button>
+        <div class="card-counter">
+        </div>
+      </div>
+    {/if}
   {/if}
 </div>

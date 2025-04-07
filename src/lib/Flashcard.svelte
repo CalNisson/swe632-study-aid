@@ -1,12 +1,13 @@
 <script>
   import { createEventDispatcher } from 'svelte';
+
   let { question, answer, index, showSuccessMessage } = $props();
   let isFlipped = $state(false);
   let showMenu = $state(false);
   let isEditing = $state(false);
   let editedQuestion = $state(question);
   let editedAnswer = $state(answer);
-  
+
   const dispatch = createEventDispatcher();
 
   function toggleMenu(e) {
@@ -53,39 +54,13 @@
   }
 </script>
 
-<div 
-  class="flashcard {isFlipped ? 'flipped' : ''}" 
+<div
+  class="flashcard {isFlipped ? 'flipped' : ''}"
   onclick={handleCardClick}
   onkeydown={handleCardClick}
   role="button"
   tabindex="0"
 >
-  <div class="card-menu">
-    <button 
-      type="button"
-      class="menu-dots" 
-      onclick={toggleMenu}
-    >⋮</button>
-    {#if showMenu}
-      <div class="card-menu-items">
-        <button 
-          type="button"
-          class="menu-item" 
-          onclick={startEdit}
-        >
-          ✏️ Edit
-        </button>
-        <button 
-          type="button"
-          class="menu-item" 
-          onclick={deleteCard}
-        >
-        🗑️ Delete
-        </button>
-      </div>
-    {/if}
-  </div>
-
   {#if isEditing}
     <div class="edit-form">
       <form onsubmit={saveEdit}>
@@ -123,6 +98,20 @@
   {/if}
 </div>
 
+<div class="card-menu">
+  <button type="button" class="menu-dots" onclick={toggleMenu}>⋮</button>
+  {#if showMenu}
+    <div class="card-menu-items">
+      <button type="button" class="menu-item" onclick={startEdit}>
+        ✏️ Edit
+      </button>
+      <button type="button" class="menu-item" onclick={deleteCard}>
+        🗑️ Delete
+      </button>
+    </div>
+  {/if}
+</div>
+
 <style>
   .flashcard {
     margin: 0.5rem auto;
@@ -142,7 +131,7 @@
   }
 
   .flashcard.flipped {
-    transform: translateX(-50%) rotateY(180deg); /* Combine transformations */
+    transform: translateX(-50%) rotateY(180deg);
   }
 
   .flashcard-content {
@@ -156,7 +145,7 @@
     flex-direction: column;
     padding: 2rem;
     box-sizing: border-box;
-    transform-style: preserve-3d; /* Add this */
+    transform-style: preserve-3d;
   }
 
   .flashcard-front p,
@@ -169,10 +158,9 @@
     box-sizing: border-box;
     font-size: 1.5rem;
     margin-bottom: 2rem;
-    pointer-events: none; /* Disable interaction by default */
+    pointer-events: none;
   }
 
-  /* Enable scrolling only on visible side */
   .flashcard:not(.flipped) .flashcard-front p {
     pointer-events: auto;
     overflow-y: auto;
@@ -183,7 +171,6 @@
     overflow-y: auto;
   }
 
-  /* Hide scrollbar on inactive side */
   .flashcard.flipped .flashcard-front p,
   .flashcard:not(.flipped) .flashcard-back p {
     overflow: hidden;
@@ -192,15 +179,14 @@
   .flashcard-front,
   .flashcard-back {
     width: 100%;
-    height: 100%; /* Added explicit height */
+    height: 100%;
     position: absolute;
     backface-visibility: hidden;
     display: flex;
     flex-direction: column;
-    pointer-events: none; /* Disable interaction by default */
+    pointer-events: none;
   }
 
-  /* Enable interaction only on visible side */
   .flashcard:not(.flipped) .flashcard-front,
   .flashcard.flipped .flashcard-back {
     pointer-events: auto;
@@ -232,16 +218,14 @@
     right: 1rem;
     font-size: 1rem;
     color: #888;
-    pointer-events: none; /* Prevent indicator from interfering with scroll */
+    pointer-events: none;
   }
 
   .card-menu {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    z-index: 30; /* Increased z-index to ensure visibility */
-    transform: rotateY(0deg);
-    backface-visibility: hidden;
+    position: fixed; /* Make it fixed */
+    top: 6rem; /* Adjust as needed */
+    right: 2rem; /* Adjust as needed */
+    z-index: 1000; /* Ensure it's above everything */
   }
 
   .menu-dots {
@@ -251,12 +235,7 @@
     background: none;
     font-size: 1.5rem;
     color: #666;
-    transition: color 0.2s;
-    opacity: 0; /* Hide by default */
-  }
-
-  .flashcard:hover .menu-dots {
-    opacity: 1; /* Show on hover */
+    opacity: 1; /* Always visible */
   }
 
   .card-menu-items {
@@ -266,9 +245,9 @@
     background: white;
     border: 1px solid #ccc;
     border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     min-width: 120px;
-    z-index: 31; /* Higher than menu-dots */
+    z-index: 31;
   }
 
   .menu-item {
@@ -297,7 +276,7 @@
     flex-direction: column;
     gap: 1rem;
     z-index: 20;
-    transform: rotateY(0deg); /* Add this to prevent backwards text */
+    transform: rotateY(0deg);
   }
 
   .edit-input {
@@ -318,7 +297,7 @@
 
   .save-button {
     padding: 0.5rem 1rem;
-    background-color: #4CAF50;
+    background-color: #4caf50;
     color: white;
     border: none;
     border-radius: 4px;

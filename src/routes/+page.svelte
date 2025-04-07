@@ -37,6 +37,63 @@
     }
   }
 
+  function handleEditDeck(event) {
+    const { newName } = event.detail;
+    // decks = decks.map(deck => 
+    //   deck === selectedDeck 
+    //     ? { ...deck, name: newName }
+    //     : deck
+    // );
+    decks[selectedDeck].name = newName;
+    //selectedDeck = { ...selectedDeck, name: newName };
+  }
+
+  function importDeck(event) {
+    const file = event.detail.file;
+    if (!file) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const text = e.target.result;
+        const importedFlashcards = text.split("\n").map(line => {
+            const [q, a] = line.split("|").map(part => part.trim());
+            return q && a ? { question: q, answer: a } : null;
+        }).filter(Boolean);
+
+        decks[selectedDeck].flashcards = [...decks[selectedDeck].flashcards, ...importedFlashcards];
+
+    };
+    reader.readAsText(file);
+  }
+
+  function removeDeck(index) {
+    const removedDeck = decks.splice(index, 1);
+    if (decks.length === 0) {
+      selectedDeck = null;
+    }   
+    else {
+      if (index === 0) {
+        selectedDeck = 0; // Select the first deck if the first one is removed
+      } else {
+        selectedDeck = selectedDeck - 1; // Adjust selectedDeck index
+      }
+    }
+    console.log("new selectedDeck = " + selectedDeck);
+    showSuccessMessage(`Deck "${removedDeck[0].name}" removed successfully!`); 
+  }
+
+  function removeFlashcard(event) {
+    const { index } = event.detail;
+    if (confirm('Are you sure you want to delete this flashcard?')) {
+      if (selectedDeck !== null) {
+        decks[selectedDeck].flashcards.splice(index, 1);
+        decks = [...decks];
+      }
+    }
+    showSuccessMessage("Flashcard deleted successfully!");
+  }
+
   function addFlashcard(newQuestion, newAnswer) {
     if (newQuestion.trim() !== "" && newAnswer.trim() !== "" && selectedDeck !== null) {
       const newCard = { question: newQuestion, answer: newAnswer };
@@ -54,17 +111,21 @@
 
 </script>
 
-<main class="flex w-full">
+<main class="flex w-full h-full">
   <!-- {JSON.stringify(decks, null, 2)} -->
 
   <!-- This div is column 1 - left side menus -->
   <div class="flex-col w-1/4 bg-gray-500 p-4">
     {#if decks.length > 0}
-      <div class="flex items-center justify-center bg-cyan-800 text-white rounded-2xl text-2xl p-4">
+      <!-- <div class="flex items-center justify-center bg-cyan-800 text-white rounded-2xl text-2xl p-4">
         Active Decks
+      </div> -->
+      <div class="flex items-center justify-center bg-cyan-900 text-white rounded-2xl text-3xl p-8 shadow-lg">
+        Active Decks:
       </div>
+
       <div class="p-2">
-        <Menu decks={decks} handleDeckChange={handleDeckChange}/> 
+        <Menu {decks} {handleDeckChange} {selectedDeck}/> 
       </div>
     {:else}
       <div class="p-4 text-center text-white text-2xl bg-cyan-800 rounded-2xl">
@@ -89,7 +150,7 @@
         {/if}
       </div>
       <div class="flex justify-center grow bg-gray-400 p-4">
-        <FlashcardList decks={decks} handleDeckChange={handleDeckChange} selectedDeck={selectedDeck} addDeck={addDeck} addFlashcard={addFlashcard} showSuccessMessage={showSuccessMessage}/>
+        <FlashcardList {decks} {handleDeckChange} {selectedDeck} {addDeck} {addFlashcard} {showSuccessMessage} {importDeck} {removeDeck} {removeFlashcard} {handleEditDeck}/>
       </div>
       <Toast message={toastMessage} show={showToast} />
   </div>

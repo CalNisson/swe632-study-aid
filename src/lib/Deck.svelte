@@ -2,13 +2,23 @@
   import Flashcard from './Flashcard.svelte';
   import { createEventDispatcher } from 'svelte';
   
-  let { flashcards, deckName, showSuccessMessage } = $props();
+  let { flashcards, deckName, showSuccessMessage, currentCardIndex } = $props();
   let showMenu = $state(false);
   let isEditing = $state(false);
   let editedName = $state(deckName);
-  let currentCardIndex = $state(0);
+  let reviewingStarred = $state(false); // Tracks if we are in starred mode
+let starredIndexes = $state([]); // Stores indexes of starred flashcards
+let starredIndex = $state(0); // Tracks position in starred list
+
+
   
   const dispatch = createEventDispatcher();
+
+$effect(() => {
+  if (flashcards.length > 0 && currentCardIndex === undefined) {
+    currentCardIndex = 0;
+  }
+});
 
   function toggleMenu() {
     showMenu = !showMenu;
@@ -43,11 +53,57 @@
     dispatch('deleteFlashcard', { index });
   }
 
-  function nextCard() {
+
+function reviewStarred() {
+  starredIndexes = flashcards
+    .map((card, index) => (card.starred ? index : -1))
+    .filter(index => index !== -1);
+
+  if (starredIndexes.length > 0) {
+    reviewingStarred = true;
+    starredIndex = 0;
+    currentCardIndex = starredIndexes[starredIndex]; // Jump to first starred card
+  } else {
+    alert("No starred flashcards to review!");
+  }
+}
+function toggleReviewStarred() {
+  if (reviewingStarred) {
+    // Exit starred mode
+    reviewingStarred = false;
+    currentCardIndex = 0; // Reset to first card in deck
+  } else {
+    // Enter starred mode
+    starredIndexes = flashcards.map((card, index) => card.starred ? index : -1).filter(index => index !== -1);
+    if (starredIndexes.length > 0) {
+      reviewingStarred = true;
+      starredIndex = 0;
+      currentCardIndex = starredIndexes[0]; // Start at first starred card
+    } else {
+      alert("No starred flashcards to review!");
+    }
+  }
+}
+
+
+function nextCard() {
+  if (reviewingStarred) {
+    if (starredIndex < starredIndexes.length - 1) {
+      starredIndex++;
+      currentCardIndex = starredIndexes[starredIndex];
+    }
+  } else {
     if (currentCardIndex < flashcards.length - 1) {
       currentCardIndex++;
     }
   }
+}
+
+function exitReviewMode() {
+  reviewingStarred = false;
+  currentCardIndex = 0; // Reset to normal mode
+}
+
 
   function previousCard() {
     if (currentCardIndex > 0) {
@@ -70,6 +126,12 @@
       card: editedCard 
     });
   }
+
+   function toggleStarred() {
+    flashcards[currentCardIndex].starred = !flashcards[currentCardIndex].starred;
+  }
+
+
 </script>
 
 <svelte:window on:keydown={handleKeydown}/>
@@ -193,8 +255,10 @@
   }
 
   .navigation-buttons {
+    margin-left: -17px;
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
+    gap: 100px;
     width: 100%;
     margin-top: 1rem;
   }
@@ -209,6 +273,12 @@
     cursor: pointer;
     transition: background-color 0.2s;
   }
+  .review-starred-button {
+  position: absolute;
+  top: 500px; /* Adjust vertically */
+  right: 20px; /* Move it closer or further from other buttons */
+}
+
 
   .nav-button:hover {
     background-color: #0056b3;
@@ -224,6 +294,27 @@
     margin-top: 1rem;
     color: #666;
   }
+  .star-button {
+  position: absolute;
+  top: 103px; /* Adjust this to move it up/down */
+  right: 60px; /* Move it closer/further from the menu dots */
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: gold;
+  z-index: 10; /* Keep it above other elements */
+}
+
+.star-button:hover {
+  color: orange;
+}
+
+
+
+
+
+
 </style>
 
 <div class="deck">
@@ -242,6 +333,8 @@
     {:else}
       <h2 class="deck-title">{deckName || 'Untitled'}</h2>
       <div class="menu-container">
+       
+        
         <button class="menu-dots" onclick={toggleMenu}>⋮</button>
         {#if showMenu}
           <div class="menu" 
@@ -263,6 +356,10 @@
     {/if}
   </div>
   {#if flashcards.length > 0}
+
+  <button class="star-button" onclick={toggleStarred}>
+    {flashcards.length > 0 && flashcards[currentCardIndex].starred ? '⭐' : '☆'}
+  </button>
     <Flashcard 
       question={flashcards[currentCardIndex].question} 
       answer={flashcards[currentCardIndex].answer}
@@ -281,12 +378,22 @@
         Previous
       </button>
       <button 
-        class="nav-button" 
-        onclick={nextCard} 
-        disabled={currentCardIndex === flashcards.length - 1}
-      >
-        Next
-      </button>
+      class="nav-button" 
+      onclick={nextCard} 
+      disabled={reviewingStarred 
+        ? starredIndex >= starredIndexes.length - 1 
+        : currentCardIndex === flashcards.length - 1}
+    >
+      Next
+    </button>
+    <button 
+    class="nav-button review-starred-button" 
+    onclick={toggleReviewStarred} 
+    style="background-color: {reviewingStarred ? 'red' : '#007bff'}"
+  >
+    {reviewingStarred ? "Exit Review" : "Review Starred"}
+  </button>
+  
     </div>
     <div class="card-counter">
       Card {currentCardIndex + 1} of {flashcards.length}
