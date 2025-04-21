@@ -7,6 +7,10 @@
   let isEditing = $state(false);
   let editedQuestion = $state(question);
   let editedAnswer = $state(answer);
+  let disableTransition = $state(false);
+
+  let lastIndex = index;
+  let lastQuestion = question;
 
   const dispatch = createEventDispatcher();
 
@@ -52,10 +56,24 @@
     event.stopPropagation();
     dispatch('deleteFlashcard', { index });
   }
+
+  $effect(() => {
+  if (index !== lastIndex || question !== lastQuestion) {
+    disableTransition = true;
+    isFlipped = false;
+    lastIndex = index;
+    lastQuestion = question;
+
+    requestAnimationFrame(() => {
+      disableTransition = false;
+    });
+  }
+});
+
 </script>
 
 <div
-  class="flashcard {isFlipped ? 'flipped' : ''}"
+  class="flashcard {isFlipped ? 'flipped' : ''} {disableTransition ? 'no-transition' : ''}"
   onclick={handleCardClick}
   onkeydown={handleCardClick}
   role="button"
@@ -88,10 +106,12 @@
     </div>
   {:else}
     <div class="flashcard-content flashcard-front">
+      <strong>Question:</strong>
       <p>{question}</p>
       <div class="flip-indicator">Click to flip</div>
     </div>
     <div class="flashcard-content flashcard-back">
+      <strong>Answer:</strong>
       <p>{answer}</p>
       <div class="flip-indicator">Click to flip</div>
     </div>
@@ -210,6 +230,10 @@
   .flashcard-back p::-webkit-scrollbar-thumb {
     background-color: #ccc;
     border-radius: 3px;
+  }
+
+  .flashcard.no-transition {
+    transition: none !important;
   }
 
   .flip-indicator {

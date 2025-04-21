@@ -1,24 +1,42 @@
 <script>
   import Flashcard from './Flashcard.svelte';
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, tick } from 'svelte';
   
-  let { flashcards, deckName, showSuccessMessage, currentCardIndex } = $props();
+  // Fix props and state initialization
+  let { 
+    flashcards = [], 
+    deckName = '', 
+    showSuccessMessage, 
+    currentCardIndex = 0 
+  } = $props();
+  
   let showMenu = $state(false);
   let isEditing = $state(false);
   let editedName = $state(deckName);
-  let reviewingStarred = $state(false); // Tracks if we are in starred mode
-let starredIndexes = $state([]); // Stores indexes of starred flashcards
-let starredIndex = $state(0); // Tracks position in starred list
+  let reviewingStarred = $state(false);
+  let starredIndexes = $state([]);
+  let starredIndex = $state(0);
+  let shuffleMode = $state(false);  // Add this missing state
 
-
-  
   const dispatch = createEventDispatcher();
 
-$effect(() => {
-  if (flashcards.length > 0 && currentCardIndex === undefined) {
+  // Update the effect to properly handle deck changes
+  $effect(() => {
+    if (flashcards && flashcards.length > 0) {
+      resetDeckView();
+      shuffleMode = false;
+    }
+  });
+
+  // Update resetDeckView to be more robust
+  async function resetDeckView() {
+    currentCardIndex = -1;
+    await tick();
     currentCardIndex = 0;
+    reviewingStarred = false;
+    starredIndexes = [];
+    starredIndex = 0;
   }
-});
 
   function toggleMenu() {
     showMenu = !showMenu;
@@ -355,16 +373,16 @@ function exitReviewMode() {
       </div>
     {/if}
   </div>
-  {#if flashcards.length > 0}
-
-  <button class="star-button" onclick={toggleStarred}>
-    {flashcards.length > 0 && flashcards[currentCardIndex].starred ? '⭐' : '☆'}
-  </button>
+  {#if flashcards && flashcards.length > 0}
+    <button class="star-button" onclick={toggleStarred}>
+      {flashcards[currentCardIndex]?.starred ? '⭐' : '☆'}
+    </button>
+    
     <Flashcard 
-      question={flashcards[currentCardIndex].question} 
-      answer={flashcards[currentCardIndex].answer}
+      question={flashcards[currentCardIndex]?.question || ''} 
+      answer={flashcards[currentCardIndex]?.answer || ''}
       index={currentCardIndex} 
-      showSuccessMessage={showSuccessMessage}
+      {showSuccessMessage}
       on:editCard={({ detail }) => handleEditCard(detail)}
       on:deleteFlashcard={deleteFlashcard}
     />
